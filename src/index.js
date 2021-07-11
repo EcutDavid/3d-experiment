@@ -98,6 +98,7 @@ function resizeRendererToDisplaySize(renderer, camera) {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  // TODO: add animation later
   for (const c of objList) {
     // c.rotation.z += 0.01;
   }
