@@ -15,28 +15,6 @@ function createCubeLineSegs(x, color) {
   return cube;
 }
 
-function createCubeMesh(x, color) {
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const material = new THREE.MeshPhongMaterial({
-    color,
-    map: textureLoader.load("./github.png"),
-  });
-  const cube = new THREE.Mesh(geometry, material);
-  cube.position.x = x;
-  return cube;
-}
-
-function createSphereSegs(x, y, size, color) {
-  const geometry = new THREE.WireframeGeometry(
-    new THREE.SphereGeometry(size, 8, 8)
-  );
-  const material = new THREE.LineBasicMaterial({ color });
-  const sphere = new THREE.LineSegments(geometry, material);
-  sphere.position.x = x;
-  sphere.position.y = y;
-  return sphere;
-}
-
 const scene = new THREE.Scene();
 const ambLight = new THREE.AmbientLight(0xffffff, 0.7);
 scene.add(ambLight);
@@ -53,7 +31,7 @@ gltfLoader.load(
       ["mug_main", "mug_texture"].includes(d.name)
     );
     mugTexture = targetObjs.find((d) => d.name === "mug_texture");
-    textureLoader.load("./github.png", (t) => {
+    textureLoader.load("./dw.jpg", (t) => {
       mugTexture.material.map = t;
     });
     for (const o of targetObjs) {
@@ -112,7 +90,6 @@ const imageUrlInput = document.querySelector("#imageUrl");
 const submitButton = document.querySelector("#submitButton");
 
 submitButton.addEventListener("click", () => {
-  console.log('?')
   textureLoader.load(imageUrlInput.value, (t) => {
     mugTexture.material.map = t;
   });
