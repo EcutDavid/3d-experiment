@@ -1,62 +1,99 @@
 import * as THREE from "three";
+import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const inputAreaHeight = 180;
+const gui = new GUI();
+const meshFolder = gui.addFolder("Mesh");
 
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
-function createCubeLineSegs(x, color) {
-  const geometry = new THREE.WireframeGeometry(new THREE.BoxGeometry(1, 1, 1));
-  const material = new THREE.LineBasicMaterial({ color });
-  const cube = new THREE.LineSegments(geometry, material);
-  cube.position.x = x;
-  cube.position.z = -2;
-  return cube;
-}
 
 const scene = new THREE.Scene();
-const ambLight = new THREE.AmbientLight(0xffffff, 0.7);
-scene.add(ambLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-dirLight.position.set(4, 2, 4);
-scene.add(dirLight);
-const objList = [];
-let mugTexture;
-gltfLoader.load(
-  "./mug.gltf",
 
-  (gltf) => {
-    const targetObjs = gltf.scene.children.filter((d) =>
-      ["mug_main", "mug_texture"].includes(d.name)
-    );
-    mugTexture = targetObjs.find((d) => d.name === "mug_texture");
-    textureLoader.load("./dw.jpg", (t) => {
-      mugTexture.material.map = t;
-    });
-    for (const o of targetObjs) {
-      scene.add(o);
-      objList.push(o);
-      // TODO: update the model
-      o.scale.x *= 5;
-      o.scale.y *= 5;
-      o.scale.z *= 5;
-    }
-    scene.add(gltf.scene.children[0]);
+// Lights
+const ambLight = new THREE.AmbientLight(0xffffff, 1.3);
+const ambLightFolder = gui.addFolder("Amb light");
+ambLightFolder.add(ambLight, "intensity");
+scene.add(ambLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0);
+const dirLightFolder = gui.addFolder("Dir light");
+dirLightFolder.add(dirLight, "intensity");
+dirLightFolder.add(dirLight.position, "x");
+dirLightFolder.add(dirLight.position, "y");
+dirLightFolder.add(dirLight.position, "z");
+dirLight.position.set(-4, 2, 4);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const pointLight = new THREE.PointLight(0xffffff, 5);
+pointLight.position.x = -6;
+pointLight.position.y = 1;
+pointLight.position.z = 0;
+const poiLightFolder = gui.addFolder("Point light");
+poiLightFolder.add(pointLight, "intensity");
+poiLightFolder.add(pointLight.position, "x");
+poiLightFolder.add(pointLight.position, "y");
+poiLightFolder.add(pointLight.position, "z");
+scene.add(pointLight);
+
+const objList = [];
+let surfaceFront;
+// gltfLoader.load("./mug_v0.2.gltf", (gltf) => {
+  // gltfLoader.load("./tshirt.gltf", (gltf) => {
+  gltfLoader.load("https://3d-mode-trial.s3.ap-southeast-2.amazonaws.com/tshirt.gltf", (gltf) => {
+  const group = gltf.scene.children[0];
+  console.log(group);
+  const targetObjs = group.children.filter((d) =>
+    ["main", "surface_front", "surface_back"].includes(d.name)
+  );
+  surfaceFront = targetObjs.find((d) => d.name === "surface_front");
+  const surfaceBack = targetObjs.find((d) => d.name === "surface_back");
+  textureLoader.load("./dw.jpg", (t) => {
+    surfaceFront.material.map = t;
+    surfaceBack.material.map = t;
+  });
+  for (const o of targetObjs) {
+    o.castShadow = true;
+    o.material.roughness = 0.8;
   }
-);
+  meshFolder.add(group.rotation, "x");
+  meshFolder.add(group.rotation, "y");
+  meshFolder.add(group.rotation, "z");
+  scene.add(group);
+  objList.push(group);
+  console.log(group);
+});
 
 const camera = new THREE.PerspectiveCamera(
-  75, // FOV
-  window.innerWidth / window.innerHeight, // Aspect ratio
+  65, // FOV
+  window.innerWidth / (window.innerHeight - inputAreaHeight), // Aspect ratio
   0.1, // near
   1000 // far
 );
-camera.position.z = 8;
+camera.position.set(-2, 1, 3);
 
 const canvas = document.querySelector("#glCanvas");
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  canvas,
+  alpha: true,
+});
+// renderer.physicallyCorrectLights = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.toneMappingExposure = 3.5;
 const controls = new OrbitControls(camera, renderer.domElement);
+const changeHandler = () => {
+  console.log('foo');
+  controls.removeEventListener('change', changeHandler);
+}
+controls.addEventListener('change', changeHandler);
+
+controls.maxAzimuthAngle = 0;
 renderer.setSize(window.innerWidth, window.innerHeight - inputAreaHeight);
 
 function resizeRendererToDisplaySize(renderer, camera) {
@@ -76,7 +113,6 @@ function resizeRendererToDisplaySize(renderer, camera) {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
-  // TODO: add animation later
   for (const c of objList) {
     // c.rotation.z += 0.01;
   }
@@ -91,6 +127,6 @@ const submitButton = document.querySelector("#submitButton");
 
 submitButton.addEventListener("click", () => {
   textureLoader.load(imageUrlInput.value, (t) => {
-    mugTexture.material.map = t;
+    surfaceFront.material.map = t;
   });
 });
