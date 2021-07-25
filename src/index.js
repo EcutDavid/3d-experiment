@@ -1,4 +1,4 @@
-// TODO: clean code.
+// TODO: clean code, a must, the code is very bad right now lol.
 import * as THREE from "three";
 // import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
