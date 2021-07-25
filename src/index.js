@@ -232,7 +232,7 @@ document.body.addEventListener("pointerup", () => {
   dndEnabled = false;
     controls.enabled = true;
 });
-document.body.addEventListener("mousemove", () => {
+document.body.addEventListener("pointermove", () => {
   if (!dndEnabled) return;
   camera.updateProjectionMatrix();
   raycaster.setFromCamera(mousePointer, camera);
