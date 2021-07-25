@@ -1,10 +1,10 @@
 import * as THREE from "three";
-// import { GUI } from "three/examples/jsm/libs/dat.gui.module";
+import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const inputAreaHeight = 100;
-// const gui = new GUI();
+const gui = new GUI();
 const textureLoader = new THREE.TextureLoader();
 const scene = new THREE.Scene();
 const gltfLoader = new GLTFLoader();
@@ -55,7 +55,7 @@ function modeToModelUrl(mode) {
   }
 }
 
-function renderModel(mode) {
+function renderModel(mode, enableFloor) {
   let modelUrl = modeToModelUrl(mode);
   animating = true;
   textureIndex = 0;
@@ -74,8 +74,55 @@ function renderModel(mode) {
   pointLight2.position.set(-3, 1, 2);
   scene.add(pointLight2);
 
+  if (enableFloor) {
+    animating = false;
+    // Referenced https://github.com/mrdoob/three.js/blob/master/examples/webgl_lights_physical.html
+    const floorMat = new THREE.MeshStandardMaterial({
+      roughness: 0.8,
+      color: 0xffffff,
+      metalness: 0.2,
+      bumpScale: 0.0005,
+    });
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load("wood/diffuse.jpg", function (map) {
+      map.wrapS = THREE.RepeatWrapping;
+      map.wrapT = THREE.RepeatWrapping;
+      map.anisotropy = 4;
+      map.repeat.set(10, 24);
+      map.encoding = THREE.sRGBEncoding;
+      floorMat.map = map;
+      floorMat.needsUpdate = true;
+    });
+    textureLoader.load("wood/bump.jpg", function (map) {
+      map.wrapS = THREE.RepeatWrapping;
+      map.wrapT = THREE.RepeatWrapping;
+      map.anisotropy = 4;
+      map.repeat.set(10, 24);
+      floorMat.bumpMap = map;
+      floorMat.needsUpdate = true;
+    });
+    textureLoader.load("wood/roughness.jpg", function (map) {
+      map.wrapS = THREE.RepeatWrapping;
+      map.wrapT = THREE.RepeatWrapping;
+      map.anisotropy = 4;
+      map.repeat.set(10, 24);
+      floorMat.roughnessMap = map;
+      floorMat.needsUpdate = true;
+    });
+    const floorGeometry = new THREE.PlaneGeometry(20, 20);
+    const floorMesh = new THREE.Mesh(floorGeometry, floorMat);
+    floorMesh.receiveShadow = true;
+    floorMesh.rotation.x = -Math.PI / 2.0;
+    const floorFolder = gui.addFolder("floor");
+    floorMesh.position.y = -1.02;
+    floorMesh.scale.set(10, 10, 1);
+    floorFolder.add(floorMesh.scale, "x");
+    floorFolder.add(floorMesh.scale, "y");
+    floorFolder.add(floorMesh.scale, "z");
+    scene.add(floorMesh);
+  }
+
   gltfLoader.load(modelUrl, (gltf) => {
-    animating = true;
     const group = gltf.scene.children[0];
     const targetObjs = group.children.filter((d) =>
       ["main", "surface_front", "surface_back"].includes(d.name)
@@ -89,7 +136,7 @@ function renderModel(mode) {
     // Model adjustment, should do it in blender instead.
     if (group.name === "mug") {
       group.rotation.z = 1.27;
-      camera.position.set(-2, 1, 3);
+      camera.position.set(-2, enableFloor ? 3 : 1, enableFloor ? 6 : 3);
     } else if (group.name === "tshirt") {
       camera.position.set(-2, 1, 1);
       ambLight.intensity = 1.5;
@@ -105,16 +152,21 @@ function renderModel(mode) {
     assignTextures();
 
     scene.add(group);
+
     rotatingObjList.push(group);
   });
 }
 
 function assignTextures() {
-  const index = (textureIndex++) % 3;
+  const index = textureIndex++ % 3;
   for (let i = 1; i <= surfacesList.length; i++) {
-    textureLoader.load(`./${currentMode}/${index * surfacesList.length + i}.png`, t => {
-      surfacesList[i - 1].material.map = t;
-    });
+    textureLoader.load(
+      `./${currentMode}/${index * surfacesList.length + i}.png`,
+      (t) => {
+        t.encoding = THREE.sRGBEncoding;
+        surfacesList[i - 1].material.map = t;
+      }
+    );
   }
 }
 
@@ -143,7 +195,7 @@ function animate() {
 }
 animate();
 
-renderModel("mug");
+renderModel("mug", true);
 
 const mugButton = document.querySelector("#mug");
 const tshirtButton = document.querySelector("#tshirt");
@@ -173,4 +225,4 @@ tshirtButton.addEventListener("click", () => {
 
 shuffleButton.addEventListener("click", () => {
   assignTextures();
-})
+});
