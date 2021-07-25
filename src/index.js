@@ -1,3 +1,4 @@
+// TODO: clean code.
 import * as THREE from "three";
 import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
@@ -41,6 +42,17 @@ const rotationChangeHandler = () => {
   animating = false;
 };
 controls.addEventListener("start", rotationChangeHandler);
+const mousePointer = new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
+
+let tracingTarget;
+let floor;
+let tracingHelper;
+
+document.addEventListener("mousemove", ({ clientX, clientY }) => {
+  mousePointer.x = (clientX / window.innerWidth) * 2 - 1;
+  mousePointer.y = -(clientY / (window.innerHeight - inputAreaHeight)) * 2 + 1;
+});
 
 function modeToModelUrl(mode) {
   switch (mode) {
@@ -113,13 +125,12 @@ function renderModel(mode, enableFloor) {
     const floorMesh = new THREE.Mesh(floorGeometry, floorMat);
     floorMesh.receiveShadow = true;
     floorMesh.rotation.x = -Math.PI / 2.0;
-    const floorFolder = gui.addFolder("floor");
     floorMesh.position.y = -1.02;
     floorMesh.scale.set(10, 10, 1);
-    floorFolder.add(floorMesh.scale, "x");
-    floorFolder.add(floorMesh.scale, "y");
-    floorFolder.add(floorMesh.scale, "z");
+    floor = floorMesh;
     scene.add(floorMesh);
+  } else {
+    floor = undefined;
   }
 
   gltfLoader.load(modelUrl, (gltf) => {
@@ -129,9 +140,14 @@ function renderModel(mode, enableFloor) {
     );
     const surfaceFront = targetObjs.find((d) => d.name === "surface_front");
     const surfaceBack = targetObjs.find((d) => d.name === "surface_back");
+    const main = targetObjs.find((d) => d.name === "main");
+    tracingTarget = main;
+    tracingHelper = new THREE.BoxHelper(main, 0x87ceeb);
+    tracingHelper.visible = false;
+    group.add(tracingHelper);
     for (const o of targetObjs) {
       o.castShadow = true;
-      o.material.roughness = 0.2;
+      o.material.roughness = 0.1;
     }
     // Model adjustment, should do it in blender instead.
     if (group.name === "mug") {
@@ -193,13 +209,50 @@ function animate() {
   resizeRendererToDisplaySize(renderer, camera);
   renderer.render(scene, camera);
 }
+
+let dndEnabled = false;
+canvas.addEventListener("pointerdown", (e) => {
+  camera.updateProjectionMatrix();
+  raycaster.setFromCamera(mousePointer, camera);
+  if (rotatingObjList.length && floor) {
+    const intersects = raycaster.intersectObjects([tracingTarget, floor]);
+    if (intersects.length > 0) {
+      // hack
+      if (intersects.find((d) => d.object.name === "main")) {
+  controls.enabled = false;
+        tracingHelper.visible = true;
+        dndEnabled = true;
+      }
+    }
+  }
+}, { capture: true });
+
+document.body.addEventListener("pointerup", () => {
+  tracingHelper.visible = false;
+  dndEnabled = false;
+    controls.enabled = true;
+});
+document.body.addEventListener("mousemove", () => {
+  if (!dndEnabled) return;
+  camera.updateProjectionMatrix();
+  raycaster.setFromCamera(mousePointer, camera);
+  if (rotatingObjList.length && floor) {
+    const intersects = raycaster.intersectObjects([tracingTarget, floor]);
+
+    if (intersects.length > 0) {
+      const { point } = intersects.find((d) => d.object.name === "");
+      rotatingObjList[0].position.set(point.x, 0, point.z);
+    }
+  }
+});
 animate();
 
-renderModel("mug", true);
+renderModel("mug");
 
 const mugButton = document.querySelector("#mug");
 const tshirtButton = document.querySelector("#tshirt");
 const shuffleButton = document.querySelector("#changeImage");
+const dndButton = document.querySelector("#dnd");
 
 function prepareNextRender() {
   while (rotatingObjList.length) rotatingObjList.pop();
@@ -211,6 +264,7 @@ mugButton.addEventListener("click", () => {
   prepareNextRender();
   tshirtButton.removeAttribute("disabled");
   mugButton.setAttribute("disabled", "true");
+  dnd.removeAttribute("disabled");
   renderModel("mug");
   currentMode = "mug";
 });
@@ -218,9 +272,19 @@ mugButton.addEventListener("click", () => {
 tshirtButton.addEventListener("click", () => {
   prepareNextRender();
   tshirtButton.setAttribute("disabled", "true");
+  dnd.removeAttribute("disabled");
   mugButton.removeAttribute("disabled");
   renderModel("tshirt");
   currentMode = "tshirt";
+});
+
+dndButton.addEventListener("click", () => {
+  prepareNextRender();
+  tshirtButton.removeAttribute("disabled");
+  dnd.setAttribute("disabled", "true");
+  mugButton.removeAttribute("disabled");
+  renderModel("mug", true);
+  currentMode = "mug";
 });
 
 shuffleButton.addEventListener("click", () => {
