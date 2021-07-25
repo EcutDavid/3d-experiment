@@ -1,11 +1,11 @@
 // TODO: clean code.
 import * as THREE from "three";
-import { GUI } from "three/examples/jsm/libs/dat.gui.module";
+// import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const inputAreaHeight = 100;
-const gui = new GUI();
+// // const gui = new GUI();
 const textureLoader = new THREE.TextureLoader();
 const scene = new THREE.Scene();
 const gltfLoader = new GLTFLoader();
