@@ -15,18 +15,19 @@
     #imageProvider {
       text-align: center;
     }
-
-    button {
-      font-size: 1.1em;
-    }
   </style>
 </head>
 <body>
   <canvas id="glCanvas"></canvas>
   <div id="imageProvider">
-    <button id="changeImage">Change surface images</button>
-    <button id="mug" disabled>Try mug</button>
-    <button id="tshirt">Try t-shirt</button>
+    <p>Use CORS-allowed image to replace the mug texture here.</p>
+    <p>Some image examples: https://davidguan.me/assets/823825cb2e6a279a80ed469df624e6ac.png</p>
+    <p>Some image to </p>
+    <label>
+      Image URL:
+      <input type="text" id="imageUrl" size="70">
+    </label>
+    <button id="submitButton">Submit</button>
   </div>
   <script src="bundle.js"></script>
 </body>
