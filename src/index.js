@@ -1,11 +1,9 @@
 // TODO: clean code, a must, the code is very bad right now lol.
 import * as THREE from "three";
-// import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const inputAreaHeight = 100;
-// // const gui = new GUI();
 const textureLoader = new THREE.TextureLoader();
 const scene = new THREE.Scene();
 const gltfLoader = new GLTFLoader();
@@ -29,9 +27,7 @@ const camera = new THREE.PerspectiveCamera(
   100 // far
 );
 camera.position.set(-2, 1, 3);
-
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.maxAzimuthAngle = 0.1;
 
 const rotatingObjList = [];
 const surfacesList = [];
@@ -57,10 +53,8 @@ document.addEventListener("mousemove", ({ clientX, clientY }) => {
 function modeToModelUrl(mode) {
   switch (mode) {
     case "mug":
-      // return "https://3d-mode-trial.s3.ap-southeast-2.amazonaws.com/mug_v2.gltf";
       return "./mug_v2.gltf";
     case "tshirt":
-      // return "https://3d-mode-trial.s3.ap-southeast-2.amazonaws.com/tshirt.gltf";
       return "./tshirt.gltf";
     default:
       break;
@@ -70,11 +64,8 @@ function modeToModelUrl(mode) {
 function renderModel(mode, enableFloor) {
   let modelUrl = modeToModelUrl(mode);
   animating = true;
-  textureIndex = 0;
 
   const ambLight = new THREE.AmbientLight(0xffffff, 1.0);
-  // const ambLightFolder = gui.addFolder("Amb light");
-  // ambLightFolder.add(ambLight, "intensity");
   scene.add(ambLight);
 
   const pointLight1 = new THREE.PointLight(0xffffff, 2);
@@ -95,31 +86,20 @@ function renderModel(mode, enableFloor) {
       metalness: 0.2,
       bumpScale: 0.0005,
     });
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load("wood/diffuse.jpg", function (map) {
-      map.wrapS = THREE.RepeatWrapping;
-      map.wrapT = THREE.RepeatWrapping;
-      map.anisotropy = 4;
-      map.repeat.set(10, 24);
-      map.encoding = THREE.sRGBEncoding;
-      floorMat.map = map;
-      floorMat.needsUpdate = true;
-    });
-    textureLoader.load("wood/bump.jpg", function (map) {
-      map.wrapS = THREE.RepeatWrapping;
-      map.wrapT = THREE.RepeatWrapping;
-      map.anisotropy = 4;
-      map.repeat.set(10, 24);
-      floorMat.bumpMap = map;
-      floorMat.needsUpdate = true;
-    });
-    textureLoader.load("wood/roughness.jpg", function (map) {
-      map.wrapS = THREE.RepeatWrapping;
-      map.wrapT = THREE.RepeatWrapping;
-      map.anisotropy = 4;
-      map.repeat.set(10, 24);
-      floorMat.roughnessMap = map;
-      floorMat.needsUpdate = true;
+    [
+      ["wood/diffuse.jpg", (t) =>floorMat.map = t ],
+      ["wood/bump.jpg", (t) =>floorMat.bumpMap = t ],
+      ["wood/roughness.jpg", (t) =>floorMat.roughnessMap = t ],
+    ].forEach(([textureSrc, callback]) => {
+      textureLoader.load(textureSrc, function (t) {
+        t.wrapS = THREE.RepeatWrapping;
+        t.wrapT = THREE.RepeatWrapping;
+        t.anisotropy = 4;
+        t.repeat.set(10, 24);
+        t.encoding = THREE.sRGBEncoding;
+        callback(t);
+        floorMat.needsUpdate = true;
+      });
     });
     const floorGeometry = new THREE.PlaneGeometry(20, 20);
     const floorMesh = new THREE.Mesh(floorGeometry, floorMat);
@@ -149,7 +129,7 @@ function renderModel(mode, enableFloor) {
       o.castShadow = true;
       o.material.roughness = 0.1;
     }
-    // Model adjustment, should do it in blender instead.
+    // Model adjustment, should do it from model level instead.
     if (group.name === "mug") {
       group.rotation.z = 1.27;
       camera.position.set(-2, enableFloor ? 3 : 1, enableFloor ? 6 : 3);
@@ -210,30 +190,27 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-let dndEnabled = false;
+let isDragging = false;
 canvas.addEventListener("pointerdown", (e) => {
   camera.updateProjectionMatrix();
   raycaster.setFromCamera(mousePointer, camera);
-  if (rotatingObjList.length && floor) {
-    const intersects = raycaster.intersectObjects([tracingTarget, floor]);
-    if (intersects.length > 0) {
-      // hack
-      if (intersects.find((d) => d.object.name === "main")) {
-  controls.enabled = false;
-        tracingHelper.visible = true;
-        dndEnabled = true;
-      }
+  if (rotatingObjList.length) {
+    const intersects = raycaster.intersectObjects([tracingTarget]);
+    if (intersects.find((d) => d.object.name === "main")) {
+      controls.enabled = false;
+      tracingHelper.visible = true;
+      isDragging = true;
     }
   }
-}, { capture: true });
+});
 
 document.body.addEventListener("pointerup", () => {
   tracingHelper.visible = false;
-  dndEnabled = false;
-    controls.enabled = true;
+  isDragging = false;
+  controls.enabled = true;
 });
 document.body.addEventListener("pointermove", () => {
-  if (!dndEnabled) return;
+  if (!isDragging) return;
   camera.updateProjectionMatrix();
   raycaster.setFromCamera(mousePointer, camera);
   if (rotatingObjList.length && floor) {
@@ -247,8 +224,6 @@ document.body.addEventListener("pointermove", () => {
 });
 animate();
 
-renderModel("mug");
-
 const mugButton = document.querySelector("#mug");
 const tshirtButton = document.querySelector("#tshirt");
 const shuffleButton = document.querySelector("#changeImage");
@@ -260,33 +235,23 @@ function prepareNextRender() {
   scene.clear();
 }
 
-mugButton.addEventListener("click", () => {
-  prepareNextRender();
-  tshirtButton.removeAttribute("disabled");
-  mugButton.setAttribute("disabled", "true");
-  dnd.removeAttribute("disabled");
-  renderModel("mug");
-  currentMode = "mug";
-});
-
-tshirtButton.addEventListener("click", () => {
-  prepareNextRender();
-  tshirtButton.setAttribute("disabled", "true");
-  dnd.removeAttribute("disabled");
-  mugButton.removeAttribute("disabled");
-  renderModel("tshirt");
-  currentMode = "tshirt";
-});
-
-dndButton.addEventListener("click", () => {
-  prepareNextRender();
-  tshirtButton.removeAttribute("disabled");
-  dnd.setAttribute("disabled", "true");
-  mugButton.removeAttribute("disabled");
-  renderModel("mug", true);
-  currentMode = "mug";
+const modeButtons = [mugButton, tshirtButton, dndButton];
+[
+  [mugButton, ["mug"]],
+  [tshirtButton, ["tshirt"]],
+  [dndButton, ["mug", true]],
+].forEach(([button, renderModelParams]) => {
+  button.addEventListener("click", () => {
+    prepareNextRender();
+    modeButtons.forEach((b) => b.removeAttribute("disabled"));
+    button.setAttribute("disabled", "true");
+    renderModel(...renderModelParams);
+    currentMode = renderModelParams[0];
+  });
 });
 
 shuffleButton.addEventListener("click", () => {
   assignTextures();
 });
+
+renderModel("mug");
